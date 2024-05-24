@@ -3,6 +3,7 @@ using SocialNetwork.Application.Requests;
 using SocialNetwork.Application.Responses;
 using SocialNetwork.Domain.Entities;
 using SocialNetwork.Infrastructure.Helpers;
+using SocialNetwork.Infrastructure.Jwt;
 
 namespace SocialNetwork.Application.Services.Auth
 {
@@ -10,30 +11,37 @@ namespace SocialNetwork.Application.Services.Auth
     {
         private readonly UserManager<AppUser> _userManager;
         private readonly RoleManager<AppRole> _roleManager;
+        private readonly IJwtService _jwtService;
 
-        public AuthService(UserManager<AppUser> userManager, RoleManager<AppRole> roleManager)
+        public AuthService(UserManager<AppUser> userManager, RoleManager<AppRole> roleManager, IJwtService jwtService)
         {
             _userManager = userManager;
             _roleManager = roleManager;
+            _jwtService = jwtService;
         }
 
         public async Task<AuthResponse> LoginAsync(LoginRequest request)
         {
             try
             {
-                var user = await _userManager.FindByEmailAsync(request.Email);
-
-                if (user == null)
-                {
-                    throw new Exception(Utility.GetValue("InCorrectEmailOrPassword"));
-                }
-
+                var user = await _userManager.FindByEmailAsync(request.Email) ?? throw new Exception(Utility.GetValue("InCorrectEmailOrPassword"));
+                
                 bool isPasswordMatched = await _userManager.CheckPasswordAsync(user, request.Password);
 
                 if (!isPasswordMatched)
                 {
                     throw new Exception(Utility.GetValue("InCorrectEmailOrPassword"));
                 }
+
+                var roles = await _userManager.GetRolesAsync(user);
+
+                UserData userData = new()
+                {
+                    Id = user.Id,
+                    Email = user.Email,
+                    UserName = user.UserName,
+                    Roles = roles
+                };
 
                 // else login
                 var result = new AuthResponse
@@ -42,7 +50,7 @@ namespace SocialNetwork.Application.Services.Auth
                     UserName = user.UserName,
                     Email = user.Email,
                     LookingFor = user.LookingFor,
-                    Token = "abc"
+                    Token = _jwtService.CreateToken(userData)
                 };
 
                 return result;
@@ -86,7 +94,6 @@ namespace SocialNetwork.Application.Services.Auth
 
                 if (userResult.Succeeded)
                 {
-                    // Assign the default role to the user
                     await _userManager.AddToRoleAsync(user, Utility.GetValue("User"));
                 }
 

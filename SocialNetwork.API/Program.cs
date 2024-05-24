@@ -1,5 +1,6 @@
 using AutoWrapper;
 using SocialNetwork.Application;
+using SocialNetwork.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,10 +13,8 @@ builder.Services.AddSwaggerGen();
 
 builder.Services
     .AddApplicationDependencies(builder.Configuration)
-    .AddDependencies(builder.Configuration);
-
-
-
+    .AddDependencies(builder.Configuration)
+    .AddInfrastructureDependencies(builder.Configuration);
 
 var app = builder.Build();
 
